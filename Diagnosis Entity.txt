@@ -1,0 +1,42 @@
+select distinct top 10 
+
+CAST(HASHBYTES('MD5', CONCAT (PP.OrganizationID ,PP.CenterID ,'Athena' ,CAST(PP.ChartID as VARCHAR(255)),CAST(PP.PatientProblemID AS VARCHAR(255)) )) AS BINARY (55)) AS DiagnosisBusinessKey 
+
+ , CAST(CONCAT (PP.OrganizationID ,'.' ,PP.CenterID ,'.' ,'Athena' ,'.' , CAST(PP.ChartID as VARCHAR(255)),CAST(PP.PatientProblemID AS VARCHAR(255)))  AS NVARCHAR(613)) AS DiagnosisNaturalBusinessKey 
+
+,PP.ContextID as ContextID, 
+PP.OrganizationID as NetworkID,
+PP.CenterID as CenterID, 
+CAST('Athena' as VARCHAR(255))as SourceSystemID,
+PP.PatientProblemID as ProblemDiagnosisID,
+--APU.PatientBusinessKey as PatientBusinessKey,
+--APU.PatientNaturalBusinessKey as PatientNaturalBusinessKey,
+--AE.EncounterBusinessKey as EncounterBusinessKey,
+--AE.EncounterNaturalBusinessKey as EncounterNaturalBusinessKey,
+Null as ResponsibleProviderBusinessKey,
+Null as ResponsibleProviderNaturalBusinessKey,
+--PP.ClinicalProviderID
+STD.DiagnosisDSC as ACRESDiagnosisDSC,
+RS.DescriptionTXT as SourceDiagnosisDSC, 
+PP.OnsetDTS as OnsetDTS, 
+PP.DeactivatedDTS as StopDTS,
+PP.StatusCD as ProblemStatusDSC,
+STD.DiagnosisCD as ACRESICD9CD,
+--HC.DiagnosisCD as ICD9CD, --To be filled After Joining HCCICDCODEALL
+STD.DiagnosisCD as ACRESICD10CD,--To be filled After Joining shared.Terminology.Diagnosis
+--HC.DiagnosisCD as ICD10CD, --To be filled After Joining HCCICDCODEALL
+PP.SnomedCD as Snowed, 
+Null as MEDICIN, 
+case when PP.DeletedDTS IS NOT NULL THEN 'Y' ELSE 'N' end as VoidedFLG,
+PP.LastUpdatedDTS as LastUpddatedInSourceSystem,
+PP.EDWLastModifiedDTS as LastUpddatedInSourceMart,
+Null as LastUpddatedInSAM,
+Null as DiagnosisLastLoadDTS
+from [AthenaHI].[Patient].[Problem] PP
+Inner Join AthenaHI.Clinical.Chart cc on PP.CenterID=cc.CenterID and PP.ChartID=cc.ChartID and PP.OrganizationID=cc.OrganizationID 
+Inner Join AthenaHI.Reference.SNOMED RS on PP.SnomedCD=RS.SnomedCD and cc.OrganizationID=RS.OrganizationID 
+and cc.CenterID=RS.CenterID
+--Left Join ACRES.AllPatientUnmaskedBase APU on PP.PatientID=APU.PatientID and  PP.OrganizationID=APU.OrganizationID and PP.CenterID=APU.CenterID
+--Left Join Acres.Encounter.Encounter AE on PP.PARENTCONTEXTCD=AE.EncounterID and PP.CenterID=AE.CenterID ---Organization ID is not present in ACRES Encounter table  need to check with  AMRO.
+Left Join Shared.Terminology.Diagnosis STD on PP.DiagnosisCD=STD.DiagnosisCD --where STD.D
+--Inner Join AthenaHI.Clinical.HCCICDCodeAll HC on 
